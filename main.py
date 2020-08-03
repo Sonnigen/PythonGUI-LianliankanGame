@@ -23,6 +23,7 @@ class MainWindow():
     NONE_LINK = 0
     LINK_LINK = 1
     NEIGHBOR_LINK = 10
+    LINE_LINK = 11
 
     EMPTY = False
 
@@ -158,6 +159,9 @@ class MainWindow():
         if self.isNeighbor(p1, p2):
             print("相邻连通")
             return {'type': self.NEIGHBOR_LINK}
+        if self.isStraightLink(p1, p2):
+            print("直连")
+            return {'type': self.LINE_LINK}
 
     # 判断2个点位是否相邻
     def isNeighbor(self, p1, p2):
@@ -180,7 +184,35 @@ class MainWindow():
                 if p1.column + 1 == p2.column:
                     return True
 
-    # 选择的点位标记红框
+    # 判断2个点位是否直连
+    def isStraightLink(self, p1, p2):
+        # 水平方向判断
+        if p1.row == p2.row:
+            if p1.column > p2.column:
+                start = p2.column
+                end = p1.column
+            else:
+                start = p1.column
+                end = p2.column
+            for column in range(start + 1, end):
+                if self._map[p1.row][column] != self.EMPTY:
+                    return False
+            return True
+        # 垂直方向判断
+        if p1.column == p2.column:
+            if p1.row > p2.row:
+                start = p2.row
+                end = p1.row
+            else:
+                start = p1.row
+                end = p2.row
+            for row in range(start + 1, end):
+                if self._map[row][p1.column] != self.EMPTY:
+                    return False
+            return True
+
+
+                # 选择的点位标记红框
     def drawSelectedArea(self, point):
         lt_x, lt_y = self.getOriginCoordinate(point.row, point.column)
         rb_x, rb_y = self.getOriginCoordinate(point.row + 1, point.column + 1)
