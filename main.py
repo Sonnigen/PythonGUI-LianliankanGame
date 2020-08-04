@@ -25,6 +25,7 @@ class MainWindow():
     NEIGHBOR_LINK = 10
     LINE_LINK = 11
     ONE_LINK = 12
+    TWO_LINK = 13
 
     EMPTY = False
 
@@ -166,6 +167,9 @@ class MainWindow():
         elif self.isOneConrnerLink(p1, p2):
             print("一个角相连")
             return {'type': self.ONE_LINK}
+        elif self.isTwoConrnerLink(p1, p2):
+            print("2个角相连")
+            return {'type': self.TWO_LINK}
 
     # 判断2个点位是否相邻
     def isNeighbor(self, p1, p2):
@@ -223,6 +227,28 @@ class MainWindow():
         pointCorner = Point(p2.row, p1.column)
         if self.isEmptyInMap(pointCorner) and self.isStraightLink(p1, pointCorner) and self.isStraightLink(p2, pointCorner):
             return pointCorner
+        return False
+
+    # 2个角相连
+    def isTwoConrnerLink(self, p1, p2):
+        # 水平方向
+        for column in range(0, self._gameSize):
+            if column == p1.column or column == p2.column:
+                continue
+            pointConrner1 = Point(p1.row, column)
+            pointConrner2 = Point(p2.row, column)
+            if self.isStraightLink(p1, pointConrner1) and self.isStraightLink(pointConrner1, pointConrner2) and self.isStraightLink(pointConrner2, p2) and self.isEmptyInMap(pointConrner1) and self.isEmptyInMap(pointConrner2):
+                return {'p1': pointConrner1, 'p2': pointConrner2}
+        # 垂直方向
+        for row in range(0, self._gameSize):
+            if row == p1.row or row == p2.row:
+                continue
+            pointConrner1 = Point(row, p1.column)
+            pointConrner2 = Point(row, p2.column)
+            if self.isStraightLink(p1, pointConrner1) and self.isStraightLink(pointConrner1,
+                                                                              pointConrner2) and self.isStraightLink(
+                    pointConrner2, p2) and self.isEmptyInMap(pointConrner1) and self.isEmptyInMap(pointConrner2):
+                return {'p1': pointConrner1, 'p2': pointConrner2}
         return False
 
     # 判断一个点位是否为空
