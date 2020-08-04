@@ -27,7 +27,7 @@ class MainWindow():
     ONE_LINK = 12
     TWO_LINK = 13
 
-    EMPTY = False
+    EMPTY = -1
 
     def __init__(self):
         # 创建主窗口
@@ -139,7 +139,8 @@ class MainWindow():
                     self._isFirst = True
                 else:
                     print("2次点击的点位不同")
-                    type = self.getLinkType(self._formerPoint, point)
+                    # type = self.getLinkType(self._formerPoint, point)
+                    type = self.getLinkTypeByAStar(self._formerPoint, point)
                     if type['type'] != self.NEIGHBOR_LINK:
                         self.clearLinkedBlocks(self._formerPoint, point)
                         self.canvas.delete('rectYellowOne')
@@ -153,6 +154,21 @@ class MainWindow():
         self._map[p1.row][p1.column] = self.EMPTY
         self._map[p2.row][p2.column] = self.EMPTY
         self.playMusic("audio/link.mp3")
+
+    # 通过a星寻路算法判断
+    def getLinkTypeByAStar(self, p1, p2):
+        if self._map[p1.row][p1.column] != self._map[p2.row][p2.column]:
+            return {'type': self.NONE_LINK}
+        startNode = Node(p1, p2)
+        endNode = Node(p2, p2)
+        pathList = AStar(self._map, startNode, endNode, self.EMPTY).start()
+        if pathList:
+            # 绘制路径
+            for node in pathList:
+                self.drawPathArea(node.point)
+            return {'type': self.LINK_LINK}
+        else:
+            return {'type': self.NONE_LINK}
 
     # 取得2个点位的连通情况
     def getLinkType(self, p1, p2):
@@ -264,6 +280,13 @@ class MainWindow():
         rb_x, rb_y = self.getOriginCoordinate(point.row + 1, point.column + 1)
         self.canvas.create_rectangle(lt_x, lt_y, rb_x, rb_y, outline='yellow', tags='rectYellowOne')
 
+
+    # 路径点位标记红
+    def drawPathArea(self, point):
+        lt_x, lt_y = self.getOriginCoordinate(point.row, point.column)
+        rb_x, rb_y = self.getOriginCoordinate(point.row + 1, point.column + 1)
+        self.canvas.create_rectangle(lt_x, lt_y, rb_x, rb_y, outline='red', tags='path%d%d' %(point.row, point.column))
+
     def file_menu_clicked(self):
         self.stopMusic()
         self.initMap()
@@ -322,6 +345,113 @@ class Point():
             return True
         else:
             return False
+
+class Node():
+    def __init__(self, point, endPoint):
+        self.point = point  # 点位
+        self.father = None  # 父节点
+        self.g = 0  # 到起点的步数
+        self.h = abs(endPoint.row - point.row) + abs(endPoint.column - point.column)  # 到终止节点的估算步数（不考虑障碍物）
+
+# A星寻路算法
+# 1. 将起点A加入open list中
+# 2. 查看起点A相邻节点，把其中可走节点加入open list中
+# 3. 把A从open list中移到close list中
+# 4. 从open list中寻找代价最低节点
+# 5. 检查代价最低节点相邻节点是否可行
+# 6. 重复上面的操作知道结束
+
+class AStar():
+    def __init__(self, map, startNode, endNode, passTag):
+        self.open_list = []  # 待探索节点列表
+        self.close_list = []  # 已探索节点列表
+        self.map = map  # 地图
+        self.startNode = startNode  # 开始节点
+        self.endNode = endNode  # 终止节点
+        self.passTag = passTag  # 可行走标记
+
+    def start(self):
+        if self.map[self.endNode.point.row][self.endNode.point.column] == self.passTag:
+            return
+        print('起点:', self.startNode.point.column, self.startNode.point.row)
+        print('终点:', self.endNode.point.column, self.endNode.point.row)
+        # 将起点加入openlist
+        self.open_list.append(self.startNode)
+        while (True):
+            # 从openlist中查找代价最低的节点
+            minFNode = self.findMinFNode()
+            # 从openlist中移除并加入closelist
+            self.open_list.remove(minFNode)
+            self.close_list.append(minFNode)
+            # 查找4个邻居节点
+            self.searchNearNode(minFNode, 0, -1)  # 向上查找
+            self.searchNearNode(minFNode, 1, 0)  # 向右查找
+            self.searchNearNode(minFNode, 0, 1)  # 向下查找
+            self.searchNearNode(minFNode, -1, 0)  # 向左查找
+            # 判断是否终止
+            endNode = self.nodeInCloseList(self.endNode)
+            if endNode:
+                print("2个节点是连通的")
+                path = []
+                node=  endNode
+                while not node.point.isEquals(self.startNode.point):
+                    path.append(node)
+                    if node.father:
+                        node = node.father
+                path.reverse()
+                return path
+            if len(self.open_list) == 0:
+                print("2个节点不连通")
+                return None
+
+    # 查找邻居节点
+    def searchNearNode(self, minFNode, offsetX, offsetY):
+        nearPoint = Point(minFNode.point.row + offsetX, minFNode.point.column + offsetY)
+        nearNode = Node(nearPoint, self.endNode.point)
+        if nearNode.point.row < 0 or nearNode.point.column < 0 or nearNode.point.row > len(self.map) -1 or nearNode.point.column > len(self.map[0] -1):
+            print("越界")
+            return
+        # 障碍物检查
+        if self.map[nearNode.point.row][nearNode.point.column] != self.passTag and not nearNode.point.isEquals(self.endNode.point):
+            print("障碍")
+            return
+        # 是否在close list中
+        if self.nodeInCloseList(nearNode):
+            print("在closelist中")
+            return
+        print("找到可行节点")
+        if not self.nodeInOpenList(nearNode):
+            self.open_list.append(nearNode)
+            nearNode.father = minFNode
+            step = 1
+            node = nearNode.father
+            while not node.point.isEquals(self.startNode.point):
+                step += 1
+                node = node.father
+            nearNode.g = step
+        return nearNode
+
+    # 节点是否在close list中
+    def nodeInCloseList(self, nearNode):
+        for node in self.close_list:
+            if node.point.isEquals(nearNode.point):
+                return node
+        return False
+
+    # 节点是否在open list中
+    def nodeInOpenList(self, nearNode):
+        for node in self.open_list:
+            if node.point.isEquals(nearNode.point):
+                return node
+        return False
+
+    # 查找代价最低节点
+    def findMinFNode(self):
+        oneNode = self.open_list[0]
+        for node in self.open_list:
+            if node.g + node.h < oneNode.g + oneNode.h:
+                oneNode = node
+        return oneNode
 
 
 if __name__ == '__main__':
